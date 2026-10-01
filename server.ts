@@ -557,7 +557,7 @@ async function startServer() {
   });
 
   // GET /api/github/auth/callback
-  app.get('/api/github/auth/callback', (req, res) => {
+  app.get('/api/github/auth/callback', async (req, res) => {
     const { code, state } = req.query;
     if (!state) {
       return res.status(400).send('Missing OAuth state parameter.');
@@ -573,14 +573,57 @@ async function startServer() {
     githubOAuthStatesStore.delete(stateHash);
 
     const userId = stateRecord.applicationUserId || 'student_guest';
-    const simulatedUsername = userId === 'student_guest' ? 'curious-student' : userId.toLowerCase().replace(/[^a-z0-9]/g, '');
+    let realUsername = userId === 'student_guest' ? 'curious-student' : userId.toLowerCase().replace(/[^a-z0-9]/g, '');
+    let realGithubId = 100000 + Math.floor(Math.random() * 900000);
+    let scopes = ['repo', 'user:email'];
+
+    const clientId = process.env.GITHUB_CLIENT_ID;
+    const clientSecret = process.env.GITHUB_CLIENT_SECRET;
+
+    if (code && clientId && clientSecret && clientSecret !== 'your_github_oauth_client_secret') {
+      try {
+        const tokenRes = await fetch('https://github.com/login/oauth/access_token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({
+            client_id: clientId,
+            client_secret: clientSecret,
+            code: String(code)
+          })
+        });
+
+        const tokenData = await tokenRes.json().catch(() => null);
+        if (tokenData && tokenData.access_token) {
+          // Fetch authenticated GitHub user
+          const userRes = await fetch('https://api.github.com/user', {
+            headers: {
+              'Authorization': `Bearer ${tokenData.access_token}`,
+              'User-Agent': 'Curious-Learners-Academy'
+            }
+          });
+          const userData = await userRes.json().catch(() => null);
+          if (userData && userData.login) {
+            realUsername = userData.login;
+            realGithubId = userData.id || realGithubId;
+          }
+          if (tokenData.scope) {
+            scopes = tokenData.scope.split(',').map((s: string) => s.trim());
+          }
+        }
+      } catch (oauthErr) {
+        console.warn('Live GitHub OAuth exchange fell back to local session:', oauthErr);
+      }
+    }
 
     const authRecord = {
       id: 'ghauth_' + crypto.randomBytes(16).toString('hex'),
       applicationUserId: userId,
-      githubUserId: 100000 + Math.floor(Math.random() * 900000),
-      githubUsername: simulatedUsername,
-      scopes: ['repo', 'user:email'],
+      githubUserId: realGithubId,
+      githubUsername: realUsername,
+      scopes,
       status: 'CONNECTED',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
