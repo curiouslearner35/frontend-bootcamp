@@ -1,0 +1,32 @@
+{
+  "version": "1.0",
+  "generatedAt": "2026-09-23T15:46:30.000Z",
+  "project": "curious-learners",
+  "canonicalCommit": "4f4de63559bd6f9df4f75c4c854352d706e58aba",
+  "agentContext": "Codazi BootCamp Full-Stack & Git-First Learning Platform Governance & Context Layer",
+  "documents": [
+    ".AGENTS/README.md",
+    ".AGENTS/PROJECT_CONTEXT.md",
+    ".AGENTS/ARCHITECTURE.md",
+    ".AGENTS/DIRECTORY_MAP.md",
+    ".AGENTS/FEATURES.md",
+    ".AGENTS/DATA_FLOW.md",
+    ".AGENTS/ROUTES.md",
+    ".AGENTS/API_MAP.md",
+    ".AGENTS/AUTH_AND_ACCESS.md",
+    ".AGENTS/UI_RULES.md",
+    ".AGENTS/DOMAIN_RULES.md",
+    ".AGENTS/DEVELOPMENT_RULES.md",
+    ".AGENTS/TESTING.md",
+    ".AGENTS/VALIDATION.md",
+    ".AGENTS/CHANGE_CONTROL.md",
+    ".AGENTS/AGENT_WORKFLOW.md",
+    ".AGENTS/CONTEXT_BASELINE_MANIFEST.json"
+  ],
+  "verification": {
+    "build": "PASS",
+    "lint": "PASS",
+    "diffCheck": "PASS",
+    "firebase": "PROVISIONED_AND_DEPLOYED"
+  }
+}

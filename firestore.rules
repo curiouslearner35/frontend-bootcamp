@@ -1,0 +1,109 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global default-deny catch-all safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- GLOBAL HELPER FUNCTIONS ---
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // --- VALIDATION HELPERS ---
+
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['id', 'name', 'email', 'role']) &&
+             data.keys().hasOnly(['id', 'name', 'email', 'username', 'avatar', 'provider', 'role', 'bio', 'joinedDate', 'gems', 'xp', 'level', 'points', 'streakDays', 'gitCommitsCount', 'totalStudyMinutes', 'updatedAt']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.name is string && data.name.size() <= 100 &&
+             data.email is string && data.email.size() <= 128 &&
+             data.role in ['student', 'instructor', 'admin'];
+    }
+
+    function isValidActivityEvent(data) {
+      return data.keys().hasAll(['id', 'studentId', 'type', 'timestamp']) &&
+             data.keys().hasOnly(['id', 'studentId', 'type', 'action', 'durationSeconds', 'timestamp', 'details']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.studentId == request.auth.uid &&
+             data.type is string && data.type.size() <= 50;
+    }
+
+    function isValidHomeworkSubmission(data) {
+      return data.keys().hasAll(['id', 'studentId', 'lessonId', 'allRequirementsMet']) &&
+             data.keys().hasOnly(['id', 'studentId', 'lessonId', 'codeHtml', 'codeCss', 'codeJs', 'allRequirementsMet', 'completedAt']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.studentId == request.auth.uid &&
+             data.lessonId is string && data.lessonId.size() <= 100 &&
+             data.allRequirementsMet is bool;
+    }
+
+    function isValidCertificate(data) {
+      return data.keys().hasAll(['id', 'studentName', 'program', 'status', 'signatureHash']) &&
+             data.keys().hasOnly(['id', 'studentName', 'studentEmail', 'program', 'completionDate', 'issuedAt', 'status', 'curriculumStats', 'issuer', 'signatureHash', 'revokedAt', 'revocationReason']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.studentName is string && data.studentName.size() <= 100 &&
+             data.status in ['VALID', 'REVOKED'] &&
+             data.signatureHash is string && data.signatureHash.size() <= 64;
+    }
+
+    // --- MATCH RULES ---
+
+    // 1. User Profiles Collection
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isSignedIn() && resource.data.id == request.auth.uid;
+      allow create: if isOwner(userId) && isValidUserProfile(incoming());
+      allow update: if isOwner(userId) && isValidUserProfile(incoming()) && incoming().id == existing().id;
+      allow delete: if isAdmin();
+    }
+
+    // 2. Activity Events Collection
+    match /activity_events/{eventId} {
+      allow get: if isSignedIn() && resource.data.studentId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.studentId == request.auth.uid;
+      allow create: if isSignedIn() && isValidActivityEvent(incoming());
+      allow update, delete: if isAdmin();
+    }
+
+    // 3. Homework Submissions Collection
+    match /homework_submissions/{submissionId} {
+      allow get: if isSignedIn() && resource.data.studentId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.studentId == request.auth.uid;
+      allow create: if isSignedIn() && isValidHomeworkSubmission(incoming());
+      allow update: if isSignedIn() && isValidHomeworkSubmission(incoming()) && existing().studentId == request.auth.uid;
+      allow delete: if isAdmin();
+    }
+
+    // 4. Certificates Registry (Publicly readable for verification)
+    match /certificates/{certificateId} {
+      allow get: if true;
+      allow list: if true;
+      allow create, update, delete: if isAdmin();
+    }
+  }
+}

@@ -1,0 +1,96 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Student user profile and progression state",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "User unique identifier" },
+        "name": { "type": "string", "maxLength": 100, "description": "Display name" },
+        "email": { "type": "string", "maxLength": 128, "description": "User email address" },
+        "username": { "type": "string", "maxLength": 50, "description": "Unique username" },
+        "avatar": { "type": "string", "maxLength": 500, "description": "Avatar image URL" },
+        "provider": { "type": "string", "enum": ["google", "github"], "description": "Auth provider" },
+        "role": { "type": "string", "enum": ["student", "instructor", "admin"], "description": "User system role" },
+        "bio": { "type": "string", "maxLength": 300, "description": "Short student bio" },
+        "joinedDate": { "type": "string", "maxLength": 50, "description": "Date joined string" },
+        "gems": { "type": "number", "description": "Gems balance" },
+        "xp": { "type": "number", "description": "Total XP points" },
+        "level": { "type": "number", "description": "Current level" },
+        "points": { "type": "number", "description": "Total activity points" },
+        "streakDays": { "type": "number", "description": "Current daily coding streak count" },
+        "gitCommitsCount": { "type": "number", "description": "Git commit count" },
+        "totalStudyMinutes": { "type": "number", "description": "Total study minutes logged" },
+        "updatedAt": { "type": "string", "description": "Last update timestamp" }
+      },
+      "required": ["id", "name", "email", "role"]
+    },
+    "ActivityEvent": {
+      "title": "ActivityEvent",
+      "description": "WakaTime-style activity tracking event log",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique event identifier" },
+        "studentId": { "type": "string", "description": "Student user ID reference" },
+        "type": { "type": "string", "maxLength": 50, "description": "Activity category" },
+        "action": { "type": "string", "maxLength": 50, "description": "Activity action" },
+        "durationSeconds": { "type": "number", "description": "Duration in seconds" },
+        "timestamp": { "type": "number", "description": "Event epoch timestamp" },
+        "details": { "type": "string", "maxLength": 200, "description": "Event details" }
+      },
+      "required": ["id", "studentId", "type", "timestamp"]
+    },
+    "HomeworkSubmission": {
+      "title": "HomeworkSubmission",
+      "description": "Student code sandbox homework evaluation submission",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Submission ID" },
+        "studentId": { "type": "string", "description": "Student ID" },
+        "lessonId": { "type": "string", "description": "Lesson ID" },
+        "codeHtml": { "type": "string", "maxLength": 10000, "description": "HTML editor code" },
+        "codeCss": { "type": "string", "maxLength": 10000, "description": "CSS editor code" },
+        "codeJs": { "type": "string", "maxLength": 10000, "description": "JS editor code" },
+        "allRequirementsMet": { "type": "boolean", "description": "Whether all task requirements passed" },
+        "completedAt": { "type": "string", "description": "Timestamp ISO string" }
+      },
+      "required": ["id", "studentId", "lessonId", "allRequirementsMet"]
+    },
+    "Certificate": {
+      "title": "Certificate",
+      "description": "Verifiable student graduation credential",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Certificate ID e.g. CZ-2026-000241" },
+        "studentName": { "type": "string", "maxLength": 100, "description": "Graduating student name" },
+        "studentEmail": { "type": "string", "maxLength": 128, "description": "Student email address" },
+        "program": { "type": "string", "maxLength": 100, "description": "Completed program name" },
+        "completionDate": { "type": "string", "maxLength": 50, "description": "Completion date" },
+        "issuedAt": { "type": "string", "description": "Issued timestamp ISO" },
+        "status": { "type": "string", "enum": ["VALID", "REVOKED"], "description": "Certificate validity status" },
+        "curriculumStats": { "type": "string", "maxLength": 200, "description": "Stats summary" },
+        "issuer": { "type": "string", "maxLength": 100, "description": "Issuing academic board" },
+        "signatureHash": { "type": "string", "maxLength": 64, "description": "Cryptographic signature hash" }
+      },
+      "required": ["id", "studentName", "program", "status", "signatureHash"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Collection of student profiles"
+    },
+    "/activity_events/{eventId}": {
+      "schema": { "$ref": "#/entities/ActivityEvent" },
+      "description": "WakaTime coding activity event logs"
+    },
+    "/homework_submissions/{submissionId}": {
+      "schema": { "$ref": "#/entities/HomeworkSubmission" },
+      "description": "Sandbox homework submission records"
+    },
+    "/certificates/{certificateId}": {
+      "schema": { "$ref": "#/entities/Certificate" },
+      "description": "Verifiable graduation certificates registry"
+    }
+  }
+}

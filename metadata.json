@@ -1,0 +1,6 @@
+{
+  "name": "Curious Learners",
+  "description": "A comprehensive developer bootcamp platform featuring Git-first curriculum, interactive terminal sandbox, verified projects, instructor command center (/root), and public credential verification.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
