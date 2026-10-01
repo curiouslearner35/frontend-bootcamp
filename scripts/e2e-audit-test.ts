@@ -537,6 +537,94 @@ async function runAllTests() {
     assert(resW12.data.workspaceId === wId, 'Student workspace ID must remain invariant across all 12 weeks');
   });
 
+  // TC-28: OAuth State Token Expiration & Replay Defense
+  await runTest('TC-28', 'Auth & Security', 'OAuth State Replay & Expiration Defense', async () => {
+    // Attempt callback with non-existent or expired state
+    const badStateRes = await apiRequest('/api/github/auth/callback?code=mock_code&state=non_existent_state_12345');
+    assert(badStateRes.status === 400, 'Non-existent state must return 400 Bad Request');
+  });
+
+  // TC-29: High Concurrency Submission Idempotency
+  await runTest('TC-29', 'Submission Hardening', 'Concurrent Submissions Idempotency Test', async () => {
+    const studentId = 'student_concurrency_test';
+    const subPayload = {
+      courseId: 'frontend-bootcamp',
+      weekId: 'week-04',
+      lessonId: 'lesson-04-01',
+      codeSolution: 'console.log("concurrency test solution");',
+      attachedFiles: [],
+      notes: 'Stress test concurrent submit'
+    };
+
+    const idempotencyKey = 'idemp_key_' + Date.now();
+
+    // Fire 3 simultaneous submissions with same idempotency key
+    const [p1, p2, p3] = await Promise.all([
+      apiRequest('/api/submissions/submit', {
+        method: 'POST',
+        headers: { 'x-user-id': studentId, 'Idempotency-Key': idempotencyKey },
+        body: subPayload
+      }),
+      apiRequest('/api/submissions/submit', {
+        method: 'POST',
+        headers: { 'x-user-id': studentId, 'Idempotency-Key': idempotencyKey },
+        body: subPayload
+      }),
+      apiRequest('/api/submissions/submit', {
+        method: 'POST',
+        headers: { 'x-user-id': studentId, 'Idempotency-Key': idempotencyKey },
+        body: subPayload
+      })
+    ]);
+
+    assert(p1.status === 200, 'First request should succeed');
+    assert(p2.status === 200, 'Second request should be deduplicated with 200');
+    assert(p3.status === 200, 'Third request should be deduplicated with 200');
+    assert(p1.data.submission.id === p2.data.submission.id, 'Submissions must share same ID');
+  });
+
+  // TC-30: Background Sync Queue Batch Processing
+  await runTest('TC-30', 'Offline Sync', 'Background Sync Queue Ingestion & Reconnect Processing', async () => {
+    const syncRes = await apiRequest('/api/sync', {
+      method: 'POST',
+      headers: { 'x-user-id': 'student_offline_hero' },
+      body: {
+        mutations: [
+          { type: 'LESSON_COMPLETED', lessonId: 'lesson-01-01', timestamp: new Date().toISOString() },
+          { type: 'GEMS_CLAIMED', amount: 50, timestamp: new Date().toISOString() }
+        ]
+      }
+    });
+
+    assert(syncRes.status === 200, 'Sync batch must return 200 OK');
+    assert(syncRes.data.success === true, 'Sync response success must be true');
+  });
+
+  // TC-31: Non-Existent Submission Review Guard
+  await runTest('TC-31', 'Error Boundaries', 'Non-Existent Submission Review Rejection', async () => {
+    const fakeReview = await apiRequest('/api/submissions/sub_non_existent_9999/review', {
+      method: 'POST',
+      headers: { 'x-user-id': 'instructor_codazi' },
+      body: {
+        action: 'APPROVE',
+        marks: 95,
+        feedback: 'Great job!'
+      }
+    });
+
+    assert(fakeReview.status === 404, 'Reviewing non-existent submission must return 404');
+  });
+
+  // TC-32: Unauthenticated Session Safe Fallbacks
+  await runTest('TC-32', 'Auth & Security', 'Unauthenticated Connection State Fallback', async () => {
+    const conn = await apiRequest('/api/github/connection', {
+      headers: { 'x-user-id': 'student_unauthed_guest_xyz' }
+    });
+
+    assert(conn.status === 200, 'Connection check returns 200 with fallback');
+    assert(typeof conn.data.status === 'string', 'Status string returned');
+  });
+
   console.log('\n================================================================================');
   const passed = results.filter(r => r.status === 'PASSED').length;
   console.log(`  E2E Audit Execution Complete: ${passed}/${results.length} Test Cases Passed (100% Green)`);

@@ -592,6 +592,37 @@ export const MentorDashboard: React.FC<MentorDashboardProps> = ({
 
           {/* C. Primary Homework Submission Form */}
           <form onSubmit={handleSubmitHomework} className="space-y-4">
+            <div className="flex items-center justify-between px-1">
+              <span className="text-xs font-bold text-[var(--text)] font-mono flex items-center gap-1.5">
+                <FileText className="h-3.5 w-3.5 text-indigo-400" />
+                <span>{language === 'bn' ? 'হোমওয়ার্ক সাবমিশন ও জার্নাল এডিটর' : 'Homework & 100DaysOfCode Editor'}</span>
+              </span>
+
+              {/* Autosave and Sync Status Indicator */}
+              <div className="flex items-center gap-2 text-[11px] font-mono">
+                {autosaveStatus === 'saving' && (
+                  <span className="text-amber-400 flex items-center gap-1">
+                    <RefreshCw className="h-3 w-3 animate-spin" /> Saving...
+                  </span>
+                )}
+                {autosaveStatus === 'saved_local' && (
+                  <span className="text-emerald-400 flex items-center gap-1">
+                    <CheckCircle2 className="h-3 w-3" /> Saved locally ✓
+                  </span>
+                )}
+                {autosaveStatus === 'synced' && (
+                  <span className="text-indigo-400 flex items-center gap-1">
+                    <Sparkles className="h-3 w-3" /> Synced ✓
+                  </span>
+                )}
+                {autosaveStatus === 'idle' && submission && (
+                  <span className="text-[var(--text-muted)] flex items-center gap-1">
+                    <Clock className="h-3 w-3" /> Autosave active
+                  </span>
+                )}
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* 1. GitHub Repository URL (Read-Only Auto-Detected) */}
               <div className="space-y-1.5 font-mono text-xs">

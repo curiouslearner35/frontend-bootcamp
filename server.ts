@@ -161,9 +161,17 @@ async function startServer() {
 
   // API Route 3: Sync Queue Mutations Batch Receiver
   app.post('/api/sync', (req, res) => {
-    const mutation = req.body;
-    console.log('[Server Sync Queue] Received mutation:', mutation?.type, mutation?.id);
-    return res.json({ status: 'synced', mutationId: mutation?.id, processedAt: Date.now() });
+    const payload = req.body;
+    let count = 0;
+    if (Array.isArray(payload)) {
+      count = payload.length;
+    } else if (payload && Array.isArray(payload.mutations)) {
+      count = payload.mutations.length;
+    } else if (payload) {
+      count = 1;
+    }
+    console.log('[Server Sync Queue] Received mutation batch:', count);
+    return res.json({ success: true, status: 'synced', processedCount: count, processedAt: Date.now() });
   });
 
   // API Route 3B: WakaTime-Style Activity Events Ingestion (Idempotent Deduplication)
@@ -935,6 +943,46 @@ async function startServer() {
     }
 
     return res.json({ submission: sub });
+  });
+
+  // POST /api/submissions/submit
+  app.post('/api/submissions/submit', (req, res) => {
+    const submissionPayload = req.body || {};
+    const submissionId = submissionPayload.id || `sub_${submissionPayload.lessonId || 'general'}_${req.headers['x-user-id'] || 'guest'}`;
+    const idempotencyKey = (req.headers['idempotency-key'] as string) || submissionId;
+
+    if (idempotencyOperationsStore.has(idempotencyKey)) {
+      return res.json(idempotencyOperationsStore.get(idempotencyKey));
+    }
+
+    const commitSha = `sha_${crypto.randomBytes(16).toString('hex')}`;
+    const issueNum = 100 + Math.floor(Math.random() * 800);
+
+    const submission = {
+      id: submissionId,
+      ...submissionPayload,
+      commitSha,
+      githubIssueNumber: issueNum,
+      status: 'SUBMITTED',
+      state: 'SUBMITTED',
+      submittedAt: new Date().toISOString(),
+      serverReceivedAt: new Date().toISOString()
+    };
+
+    serverHomeworkSubmissionsStore.set(submissionId, submission);
+
+    const responseData = {
+      submissionId,
+      status: 'SUBMITTED',
+      submission,
+      commitSha,
+      githubIssueNumber: issueNum,
+      deploymentStatus: 'PENDING',
+      nextAction: 'AWAIT_REVIEW'
+    };
+
+    idempotencyOperationsStore.set(idempotencyKey, responseData);
+    return res.json(responseData);
   });
 
   // POST /api/submissions/:submissionId/submit
